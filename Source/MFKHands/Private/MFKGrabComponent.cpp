@@ -80,6 +80,18 @@ EGrabType UMFKGrabComponent::GetGrabType()
 	return GrabType;
 }
 
+void UMFKGrabComponent::SetHoldingHandMotionController(UMotionControllerComponent* GrabHandMotionController)
+{
+	HoldingHandMotionController = GrabHandMotionController;
+}
+
+UMotionControllerComponent* UMFKGrabComponent::GetHoldingMotionController()
+{
+	return HoldingHandMotionController;
+}
+
+
+
 
 
 

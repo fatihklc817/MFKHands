@@ -22,6 +22,9 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	FName SocketNameLeft;
+
+	UPROPERTY(EditAnywhere)
+	class UMotionControllerComponent* HoldingHandMotionController;
 	
 
 public:	
@@ -44,4 +47,10 @@ public:
 
 	UFUNCTION()
 	EGrabType GetGrabType();
+
+	UFUNCTION()
+	void SetHoldingHandMotionController(UMotionControllerComponent* GrabHandMotionController);
+
+	UFUNCTION(BlueprintCallable)
+	UMotionControllerComponent* GetHoldingMotionController();
 };

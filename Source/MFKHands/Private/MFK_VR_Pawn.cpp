@@ -115,6 +115,7 @@ void AMFK_VR_Pawn::RightGripStarted()
 			if (bSucces)
 			{
 				 CurrentRighHandGrabActor = NearestGrabActor  ;
+				GrabComponent->SetHoldingHandMotionController(MotionControllerComponentRight);
 			}
 			UE_LOG(LogTemp, Warning, TEXT("socket name %s"),*GrabComponent->GetRightAttachmentSocketName().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("is attached work %d"),bSucces);
@@ -187,6 +188,7 @@ void AMFK_VR_Pawn::LeftGripStarted()
 			if (bSucces)
 			{
 				CurrentLeftHandGrabActor = NearestGrabActor  ;
+				GrabComponent->SetHoldingHandMotionController(MotionControllerComponentLeft);
 			}
 			UE_LOG(LogTemp, Warning, TEXT("socket name %s"),*GrabComponent->GetLeftAttachmentSocketName().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("is attached work %d"),bSucces);
