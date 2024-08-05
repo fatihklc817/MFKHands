@@ -244,7 +244,7 @@ AActor* AMFK_VR_Pawn::CheckForNearestGrabActor(UMotionControllerComponent* Selec
 	float Distance = 99999999999;
 	AActor* NearestGrabActor = nullptr;
 	
-	if(UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(),StartLocation,EndLocation,GrabSphereRadius,GrabObjectTypes,false,ActorsToIgnore,EDrawDebugTrace::Type::ForDuration,HitResults,true))
+	if(UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(),StartLocation,EndLocation,GrabSphereRadius,GrabObjectTypes,false,ActorsToIgnore,EDrawDebugTrace::Type::None,HitResults,true))
 	{
 		if(GEngine)
 			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("Grab Draww"));
