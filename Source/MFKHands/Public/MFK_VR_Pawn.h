@@ -33,6 +33,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	class UStaticMeshComponent* HeadMountedDisplayMesh;
 
+	
+	//input
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputMappingContext* DefaultMappingContext;
 
@@ -42,9 +44,33 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* IA_LeftGrip;
 
-	// UPROPERTY(EditDefaultsOnly)
-	// class UNiagaraComponent* NiagaraParticleSystem;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* IA_Move;
+	//
+	
+	UPROPERTY(EditDefaultsOnly)
+	class UNiagaraComponent* NiagaraParticleSystem;
 
+	UPROPERTY()
+	class UNavigationSystemV1* NavSystem;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<AActor> SpawnTeleportNiagaraActor;
+
+	UPROPERTY()
+	AActor* TeleportVisualizerReference;
+
+	UPROPERTY()
+	TArray<FVector> TeleportTracePathPosition;
+
+	UPROPERTY()
+	FVector TeleportPoint;
+	bool bIsValidTeleportPoint;
+
+	UPROPERTY(EditAnywhere,Category="vr")
+	float TeleportZHeight;
+
+	
 	UPROPERTY(EditDefaultsOnly)
 	float GrabSphereRadius;
 
@@ -53,6 +79,7 @@ protected:
 
 	UPROPERTY()
 	AActor* CurrentLeftHandGrabActor;
+
 	
 public:
 	// Sets default values for this pawn's properties
@@ -82,6 +109,15 @@ protected:
 	UFUNCTION()
 	void LeftGripEnded();
 
+	UFUNCTION()
+	void MoveStarted();
+
+	UFUNCTION()
+	void MoveTrigger();
+
+	UFUNCTION()
+	void MoveEnd();
+	
 	UFUNCTION()
 	AActor* CheckForNearestGrabActor(UMotionControllerComponent* SelectedMotionController);
 };

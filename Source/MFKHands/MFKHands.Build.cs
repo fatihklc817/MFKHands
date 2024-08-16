@@ -8,7 +8,7 @@ public class MFKHands : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" ,"HeadMountedDisplay" ,"XRBase" ,"EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" ,"HeadMountedDisplay" ,"XRBase" ,"EnhancedInput" ,"Niagara" , "NavigationSystem" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

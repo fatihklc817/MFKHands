@@ -9,7 +9,11 @@
 #include "MFKGrabComponent.h"
 #include "MFKHandAnimInstance.h"
 #include "MotionControllerComponent.h"
+#include "NavigationSystem.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
@@ -39,6 +43,11 @@ AMFK_VR_Pawn::AMFK_VR_Pawn()
 	HeadMountedDisplayMesh = CreateDefaultSubobject<UStaticMeshComponent>("Head Mounted Display Mesh");
 	HeadMountedDisplayMesh->SetupAttachment(VrCamera);
 
+	NiagaraParticleSystem = CreateDefaultSubobject<UNiagaraComponent>("Niagara Particle System");
+	NiagaraParticleSystem -> SetupAttachment(RootComponent);
+	NiagaraParticleSystem->SetVisibility(false);
+	
+	NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
 }
 
 // Called when the game starts or when spawned
@@ -50,7 +59,9 @@ void AMFK_VR_Pawn::BeginPlay()
 	{
 		UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Eye);
 		Cast<APlayerController>(GetController())->ConsoleCommand("vr.PixelDensity 1.0");
-	
+
+		K2_TeleportTo(FVector(GetActorLocation().X,GetActorLocation().Y,TeleportZHeight),GetActorRotation());
+		
 	}
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
@@ -82,6 +93,11 @@ void AMFK_VR_Pawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		
 		EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Started,this,&AMFK_VR_Pawn::LeftGripStarted);
 		EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::LeftGripEnded);
+
+		EnhancedInputComponent->BindAction(IA_Move,ETriggerEvent::Started,this,&AMFK_VR_Pawn::MoveStarted);
+		EnhancedInputComponent->BindAction(IA_Move,ETriggerEvent::Triggered,this,&AMFK_VR_Pawn::MoveTrigger);
+		EnhancedInputComponent->BindAction(IA_Move,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::MoveEnd);
+		
 	}
 
 }
@@ -230,6 +246,84 @@ void AMFK_VR_Pawn::LeftGripEnded()
 			AnimInstanceLeft->SetGrabType(EGrabType::Free);
 		}
 	}
+}
+
+void AMFK_VR_Pawn::MoveStarted()
+{
+	if (!NiagaraParticleSystem->IsVisible())
+	{
+		NiagaraParticleSystem->SetVisibility(true);
+	}
+	
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	FVector SpawnLoc = FVector(0,0,0);
+	FRotator SpawnRot = FRotator(0,0,0);
+	TeleportVisualizerReference = GetWorld()->SpawnActor<AActor>(SpawnTeleportNiagaraActor,SpawnLoc,SpawnRot,SpawnParameters);
+}
+
+void AMFK_VR_Pawn::MoveTrigger()
+{
+	FPredictProjectilePathParams PathParams;
+	PathParams.StartLocation = HandSkeletonRight->GetSocketLocation("IndexSocket");
+	PathParams.ProjectileRadius = 3.6;
+	PathParams.bTraceWithChannel = true;
+	PathParams.bTraceWithCollision = true;
+	PathParams.bTraceComplex = true; 
+	PathParams.TraceChannel = ECC_WorldStatic;
+	PathParams.bTraceWithChannel = true;
+	PathParams.DrawDebugType = EDrawDebugTrace::Type::None;
+	PathParams.SimFrequency = 15;
+	PathParams.MaxSimTime = 2;
+			
+	PathParams.LaunchVelocity = HandSkeletonRight->GetSocketTransform("IndexSocket").GetRotation().GetForwardVector() * 500;
+			
+			
+	FPredictProjectilePathResult PathResult;
+	UGameplayStatics::PredictProjectilePath(this,PathParams,PathResult);
+
+	TeleportTracePathPosition.Empty(); // Clear previous positions
+
+	for (const FPredictProjectilePathPointData& PointData : PathResult.PathData)
+	{
+		TeleportTracePathPosition.Add(PointData.Location);
+	}
+
+	TeleportTracePathPosition.Insert(HandSkeletonRight->GetSocketLocation("IndexSocket"),0);
+
+	FNavLocation OutLocation;
+	bool bValid =	NavSystem->ProjectPointToNavigation(PathResult.HitResult.Location,OutLocation,FVector(500,500,500));
+
+	if (bValid)
+	{
+		TeleportPoint = OutLocation;
+		bIsValidTeleportPoint = true;
+
+		TeleportVisualizerReference->GetRootComponent()->SetVisibility(bIsValidTeleportPoint,true);
+		TeleportVisualizerReference->SetActorLocation(TeleportPoint);
+
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(NiagaraParticleSystem,"User.PointArray",TeleportTracePathPosition);
+		
+	}
+}
+
+void AMFK_VR_Pawn::MoveEnd()
+{
+	if (TeleportVisualizerReference)
+	{
+		TeleportVisualizerReference->Destroy();
+	}
+
+	NiagaraParticleSystem->SetVisibility(false);
+
+	if (bIsValidTeleportPoint)
+	{
+		bIsValidTeleportPoint  = false;
+
+		K2_TeleportTo(FVector(TeleportPoint.X,TeleportPoint.Y,TeleportZHeight),GetActorRotation());
+		UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(TeleportZHeight,EOrientPositionSelector::Position);
+	}
+	
 }
 
 AActor* AMFK_VR_Pawn::CheckForNearestGrabActor(UMotionControllerComponent* SelectedMotionController)
