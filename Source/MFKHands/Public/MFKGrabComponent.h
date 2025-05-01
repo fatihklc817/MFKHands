@@ -25,8 +25,15 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	class UMotionControllerComponent* HoldingHandMotionController;
-	
 
+	UPROPERTY()
+	bool bIsObjectGrabbed;
+
+	UPROPERTY()
+	FTransform ObjectStartTransform;
+
+	UPROPERTY()
+	USkeletalMeshComponent* HoldingSkeletalMeshComponent;
 public:	
 	
 	UMFKGrabComponent();
@@ -37,7 +44,7 @@ protected:
 
 public:
 	UFUNCTION()
-	void Grab(class UMotionControllerComponent* GrabHand);
+	void Grab(USkeletalMeshComponent* HandSkeleton);
 
 	UFUNCTION()
 	FName GetRightAttachmentSocketName();
@@ -53,4 +60,19 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	UMotionControllerComponent* GetHoldingMotionController();
+
+	UFUNCTION(BlueprintCallable)
+	USkeletalMeshComponent* GetHoldingSkeletalMeshComponent();
+
+	UFUNCTION()
+	void SetHoldingSkeletalMeshComp(USkeletalMeshComponent* InSkeletalMesh);
+
+	UFUNCTION()
+	void SetIsObjectGrabbed(bool BoolValue);
+
+	UFUNCTION()
+	bool GetIsObjectGrabbed();
+
+	UFUNCTION()
+	void ResetObjectToStartPos();
 };

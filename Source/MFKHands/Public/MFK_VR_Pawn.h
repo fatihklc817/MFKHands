@@ -33,6 +33,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	class UStaticMeshComponent* HeadMountedDisplayMesh;
 
+	UPROPERTY(EditDefaultsOnly)
+	class USphereComponent* RightHandSphereComponent;
+	
+
+	UPROPERTY(EditDefaultsOnly)
+	class USphereComponent* LeftHandSphereComponent;
+
 	
 	//input
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -80,6 +87,9 @@ protected:
 	UPROPERTY()
 	AActor* CurrentLeftHandGrabActor;
 
+	bool bIsRightGrabAtCoolDown = false;
+	bool bIsLeftGrabAtCoolDown = false;
+
 	
 public:
 	// Sets default values for this pawn's properties
@@ -98,13 +108,13 @@ public:
 
 protected:
 	UFUNCTION()
-	void RightGripStarted();
+	void RightGripStarted(AActor* GrabbedActor);
 
 	UFUNCTION()
 	void RightGripEnded();
 
 	UFUNCTION()
-	void LeftGripStarted();
+	void LeftGripStarted(AActor* GrabbedActor);
 	
 	UFUNCTION()
 	void LeftGripEnded();
@@ -120,4 +130,10 @@ protected:
 	
 	UFUNCTION()
 	AActor* CheckForNearestGrabActor(UMotionControllerComponent* SelectedMotionController);
+
+	UFUNCTION()
+	void OnRightHandSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnLeftHandSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };

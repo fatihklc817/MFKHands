@@ -12,7 +12,8 @@ UMFKGrabComponent::UMFKGrabComponent()
 {
 
 	PrimaryComponentTick.bCanEverTick = false;
-	
+
+	bIsObjectGrabbed = false;
 }
 
 
@@ -21,11 +22,12 @@ void UMFKGrabComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//ObjectStartTransform = GetOwner()->GetActorTransform();
 
 	
 }
 
-void UMFKGrabComponent::Grab(UMotionControllerComponent* GrabHand)
+void UMFKGrabComponent::Grab(USkeletalMeshComponent* HandSkeleton)
 {
 	//attach this to grabhand parameter skeletal
 	UE_LOG(LogTemp, Warning, TEXT(" GrabComponentLog"));
@@ -49,11 +51,10 @@ void UMFKGrabComponent::Grab(UMotionControllerComponent* GrabHand)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Root component is not a primitive component."));
 		}
+		
+		
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No owner actor found."));
-	}
+	
 	
 	
 	// //GetOwner()->K2_AttachRootComponentTo(GrabHand,SocketName,EAttachLocation::KeepWorldPosition);
@@ -88,6 +89,56 @@ void UMFKGrabComponent::SetHoldingHandMotionController(UMotionControllerComponen
 UMotionControllerComponent* UMFKGrabComponent::GetHoldingMotionController()
 {
 	return HoldingHandMotionController;
+}
+
+USkeletalMeshComponent* UMFKGrabComponent::GetHoldingSkeletalMeshComponent()
+{
+	if (HoldingSkeletalMeshComponent)
+	{
+		return HoldingSkeletalMeshComponent;
+	}
+	
+	return nullptr;
+}
+
+void UMFKGrabComponent::SetHoldingSkeletalMeshComp(USkeletalMeshComponent* InSkeletalMesh)
+{
+	HoldingSkeletalMeshComponent = InSkeletalMesh;
+}
+
+void UMFKGrabComponent::SetIsObjectGrabbed(bool BoolValue)
+{
+	bIsObjectGrabbed = BoolValue;
+}
+
+bool UMFKGrabComponent::GetIsObjectGrabbed()
+{
+	return bIsObjectGrabbed;
+}
+
+void UMFKGrabComponent::ResetObjectToStartPos()
+{
+	AActor* OwnerActor = GetOwner();
+	OwnerActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	//OwnerActor->SetActorTransform(ObjectStartTransform);
+	
+	if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(OwnerActor->GetComponentByClass(UMeshComponent::StaticClass())))
+	{
+		MeshComponent->SetSimulatePhysics(true);
+	
+	}
+
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+	{
+		SetIsObjectGrabbed(false);
+		
+	},
+	1.5f,
+	false
+	);
+	
+	
 }
 
 

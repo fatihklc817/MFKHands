@@ -13,6 +13,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -48,6 +49,16 @@ AMFK_VR_Pawn::AMFK_VR_Pawn()
 	NiagaraParticleSystem->SetVisibility(false);
 	
 	NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+
+	RightHandSphereComponent = CreateDefaultSubobject<USphereComponent>("Right Hand Sphere");
+	RightHandSphereComponent->SetupAttachment(MotionControllerComponentRight);
+	RightHandSphereComponent->SetSphereRadius(13);
+
+	LeftHandSphereComponent = CreateDefaultSubobject<USphereComponent>("Left Hand Sphere");
+	LeftHandSphereComponent->SetupAttachment(MotionControllerComponentLeft);
+	LeftHandSphereComponent->SetSphereRadius(13);
+
+	
 }
 
 // Called when the game starts or when spawned
@@ -71,7 +82,9 @@ void AMFK_VR_Pawn::BeginPlay()
 			Subystem->AddMappingContext(DefaultMappingContext,0);
 		}
 	}
-	
+
+	RightHandSphereComponent->OnComponentBeginOverlap.AddDynamic(this,&AMFK_VR_Pawn::OnRightHandSphereBeginOverlap);
+	LeftHandSphereComponent->OnComponentBeginOverlap.AddDynamic(this,&AMFK_VR_Pawn::OnLeftHandSphereBeginOverlap);
 }
 
 // Called every frame
@@ -88,11 +101,11 @@ void AMFK_VR_Pawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EnhancedInputComponent->BindAction(IA_RightGrip,ETriggerEvent::Started,this,&AMFK_VR_Pawn::RightGripStarted);
-		EnhancedInputComponent->BindAction(IA_RightGrip,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::RightGripEnded);
+		//EnhancedInputComponent->BindAction(IA_RightGrip,ETriggerEvent::Started,this,&AMFK_VR_Pawn::RightGripStarted);
+		//EnhancedInputComponent->BindAction(IA_RightGrip,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::RightGripEnded);
 		
-		EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Started,this,&AMFK_VR_Pawn::LeftGripStarted);
-		EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::LeftGripEnded);
+		//EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Started,this,&AMFK_VR_Pawn::LeftGripStarted);
+		//EnhancedInputComponent->BindAction(IA_LeftGrip,ETriggerEvent::Completed,this,&AMFK_VR_Pawn::LeftGripEnded);
 
 		EnhancedInputComponent->BindAction(IA_Move,ETriggerEvent::Started,this,&AMFK_VR_Pawn::MoveStarted);
 		EnhancedInputComponent->BindAction(IA_Move,ETriggerEvent::Triggered,this,&AMFK_VR_Pawn::MoveTrigger);
@@ -102,21 +115,39 @@ void AMFK_VR_Pawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 }
 
-void AMFK_VR_Pawn::RightGripStarted()
+void AMFK_VR_Pawn::RightGripStarted(AActor* GrabbedActor)
 {
-	if (CurrentRighHandGrabActor != nullptr)
-	{
-		return;
-	}
+	
 	// if(GEngine)
 	// 	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("RightGrip"));	
 
-	if (AActor* NearestGrabActor = CheckForNearestGrabActor(MotionControllerComponentRight))
-	{
-		UMFKGrabComponent* GrabComponent = Cast<UMFKGrabComponent>(NearestGrabActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
-		if (GrabComponent)
+	
+		 //if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("yeni nearest grab actor alindi"));
+		
+		UMFKGrabComponent* NewGrabbedActorsGrabComponent = Cast<UMFKGrabComponent>(GrabbedActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+		if (NewGrabbedActorsGrabComponent)
 		{
-			UMeshComponent* MeshComponent = Cast<UMeshComponent>(NearestGrabActor->GetComponentByClass(UMeshComponent::StaticClass()));
+			if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("yeni objenin grab comp u alindii"));
+			
+			if (NewGrabbedActorsGrabComponent->GetIsObjectGrabbed())
+			{
+				if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("yeni obje zaten grab olan obje bittiiiiiii returnnnn "));
+				return;
+			}
+			
+			
+			if (CurrentRighHandGrabActor != nullptr)
+			{
+				UMFKGrabComponent* OldGrabbedObjectGrabComponent = Cast<UMFKGrabComponent>(CurrentRighHandGrabActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+				if (OldGrabbedObjectGrabComponent)
+				{
+					if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("eski obje birakildi"));
+					OldGrabbedObjectGrabComponent->ResetObjectToStartPos();
+				}
+			}
+			
+			
+			UMeshComponent* MeshComponent = Cast<UMeshComponent>(GrabbedActor->GetComponentByClass(UMeshComponent::StaticClass()));
 			if (MeshComponent)
 			{
 				// Disable physics simulation
@@ -127,24 +158,30 @@ void AMFK_VR_Pawn::RightGripStarted()
 			{
 				UE_LOG(LogTemp, Warning, TEXT("Root component is not a primitive component."));
 			}
-			bool bSucces = NearestGrabActor->AttachToComponent(HandSkeletonRight,FAttachmentTransformRules::SnapToTargetNotIncludingScale,GrabComponent->GetRightAttachmentSocketName());
+			
+			bool bSucces = GrabbedActor->AttachToComponent(HandSkeletonRight,FAttachmentTransformRules::SnapToTargetNotIncludingScale,NewGrabbedActorsGrabComponent->GetRightAttachmentSocketName());
 			if (bSucces)
 			{
-				 CurrentRighHandGrabActor = NearestGrabActor  ;
-				GrabComponent->SetHoldingHandMotionController(MotionControllerComponentRight);
+				 CurrentRighHandGrabActor = GrabbedActor  ;
+				NewGrabbedActorsGrabComponent->SetHoldingHandMotionController(MotionControllerComponentRight);
+				NewGrabbedActorsGrabComponent->SetHoldingSkeletalMeshComp(HandSkeletonRight);
+				NewGrabbedActorsGrabComponent->SetIsObjectGrabbed(true);
 			}
-			UE_LOG(LogTemp, Warning, TEXT("socket name %s"),*GrabComponent->GetRightAttachmentSocketName().ToString());
+			
+			UE_LOG(LogTemp, Warning, TEXT("socket name %s"),*NewGrabbedActorsGrabComponent->GetRightAttachmentSocketName().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("is attached work %d"),bSucces);
+
+			UMFKHandAnimInstance* AnimInstanceRight =  Cast<UMFKHandAnimInstance>(HandSkeletonRight->GetAnimInstance());
+			if (AnimInstanceRight)
+			{
+				AnimInstanceRight->SetGrabType(NewGrabbedActorsGrabComponent->GetGrabType());
+			}
 		}
 
 		
-	UMFKHandAnimInstance* AnimInstanceRight =  Cast<UMFKHandAnimInstance>(HandSkeletonRight->GetAnimInstance());
-		if (AnimInstanceRight)
-		{
-			AnimInstanceRight->SetGrabType(GrabComponent->GetGrabType());
-		}
+
 		
-	}
+	
 
 
 	//check for near grab actors
@@ -175,49 +212,64 @@ void AMFK_VR_Pawn::RightGripEnded()
 }
 
 
-void AMFK_VR_Pawn::LeftGripStarted()
+void AMFK_VR_Pawn::LeftGripStarted(AActor* GrabbedActor)
 {
-	if (CurrentLeftHandGrabActor != nullptr)
+	
+	UMFKGrabComponent* NewGrabbedActorsGrabComponent = Cast<UMFKGrabComponent>(GrabbedActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+	if (NewGrabbedActorsGrabComponent)
 	{
-		return;
-	}
-	// if(GEngine)
-	// 	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("RightGrip"));	
-
-	if (AActor* NearestGrabActor = CheckForNearestGrabActor(MotionControllerComponentLeft))
-	{
-		UMFKGrabComponent* GrabComponent = Cast<UMFKGrabComponent>(NearestGrabActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
-		if (GrabComponent)
+		if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("yeni objenin grab comp u alindii"));
+			
+		if (NewGrabbedActorsGrabComponent->GetIsObjectGrabbed())
 		{
-			UMeshComponent* MeshComponent = Cast<UMeshComponent>(NearestGrabActor->GetComponentByClass(UMeshComponent::StaticClass()));
-			if (MeshComponent)
-			{
-				// Disable physics simulation
-				MeshComponent->SetSimulatePhysics(false);
-				UE_LOG(LogTemp, Warning, TEXT("Physics simulation disabled for the owner actor."));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Root component is not a primitive component."));
-			}
-			bool bSucces = NearestGrabActor->AttachToComponent(HandSkeletonLeft,FAttachmentTransformRules::SnapToTargetNotIncludingScale,GrabComponent->GetLeftAttachmentSocketName());
-			if (bSucces)
-			{
-				CurrentLeftHandGrabActor = NearestGrabActor  ;
-				GrabComponent->SetHoldingHandMotionController(MotionControllerComponentLeft);
-			}
-			UE_LOG(LogTemp, Warning, TEXT("socket name %s"),*GrabComponent->GetLeftAttachmentSocketName().ToString());
-			UE_LOG(LogTemp, Warning, TEXT("is attached work %d"),bSucces);
+			if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("yeni obje zaten grab olan obje bittiiiiiii returnnnn "));
+			return;
 		}
-
+			
+			
+		if (CurrentLeftHandGrabActor != nullptr)
+		{
+			UMFKGrabComponent* OldGrabbedObjectGrabComponent = Cast<UMFKGrabComponent>(CurrentLeftHandGrabActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+			if (OldGrabbedObjectGrabComponent)
+			{
+				if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("eski obje birakildi"));
+				OldGrabbedObjectGrabComponent->ResetObjectToStartPos();
+				
+			}
+		}
+		
+		UMeshComponent* MeshComponent = Cast<UMeshComponent>(GrabbedActor->GetComponentByClass(UMeshComponent::StaticClass()));
+		if (MeshComponent)
+		{
+			// Disable physics simulation
+			MeshComponent->SetSimulatePhysics(false);
+			UE_LOG(LogTemp, Warning, TEXT("Physics simulation disabled for the owner actor."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Root component is not a primitive component."));
+		}
+		
+		bool bSucces = GrabbedActor->AttachToComponent(HandSkeletonLeft,FAttachmentTransformRules::SnapToTargetNotIncludingScale,NewGrabbedActorsGrabComponent->GetLeftAttachmentSocketName());
+		if (bSucces)
+		{
+			CurrentLeftHandGrabActor = GrabbedActor  ;
+			NewGrabbedActorsGrabComponent->SetHoldingHandMotionController(MotionControllerComponentLeft);
+			NewGrabbedActorsGrabComponent->SetHoldingSkeletalMeshComp(HandSkeletonLeft);
+			NewGrabbedActorsGrabComponent->SetIsObjectGrabbed(true);
+		}
+		
 		
 		UMFKHandAnimInstance* AnimInstanceLeft =  Cast<UMFKHandAnimInstance>(HandSkeletonLeft->GetAnimInstance());
 		if (AnimInstanceLeft)
 		{
-			AnimInstanceLeft->SetGrabType(GrabComponent->GetGrabType());
+			AnimInstanceLeft->SetGrabType(NewGrabbedActorsGrabComponent->GetGrabType());
 		}
 		
 	}
+
+	
+}
 
 
 	//check for near grab actors
@@ -227,7 +279,7 @@ void AMFK_VR_Pawn::LeftGripStarted()
 	//right hand animation to grip to the specific actor
 	
 	
-}
+
 
 void AMFK_VR_Pawn::LeftGripEnded()
 {
@@ -370,3 +422,48 @@ AActor* AMFK_VR_Pawn::CheckForNearestGrabActor(UMotionControllerComponent* Selec
 	return nullptr;
 }
 
+
+void AMFK_VR_Pawn::OnRightHandSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (bIsRightGrabAtCoolDown)
+	{
+		return;
+	}
+	UMFKGrabComponent* GrabCompOfOtherActor = Cast<UMFKGrabComponent>(OtherActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+	if (GrabCompOfOtherActor)
+	{
+		if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("Grab complu actore overlap edildi"));
+		RightGripStarted(OtherActor);
+		bIsRightGrabAtCoolDown = true;
+		
+		FTimerHandle TimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			bIsRightGrabAtCoolDown = false;
+		}, 1.5f, false);
+	}
+}
+
+void AMFK_VR_Pawn::OnLeftHandSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (bIsLeftGrabAtCoolDown)
+	{
+		return;
+	}
+	UMFKGrabComponent* GrabCompOfOtherActor = Cast<UMFKGrabComponent>(OtherActor->GetComponentByClass(UMFKGrabComponent::StaticClass()));
+	if (GrabCompOfOtherActor)
+	{
+		if(GEngine) GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, TEXT("Grab complu actore overlap edildi"));
+		LeftGripStarted(OtherActor);
+		bIsLeftGrabAtCoolDown = true;
+
+		FTimerHandle TimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			bIsLeftGrabAtCoolDown = false;
+		}, 1.5f, false);
+
+		
+		
+	}
+}
