@@ -10,7 +10,7 @@
  * 
  */
 
-UENUM(BlueprintType)
+UENUM(BlueprintType  , meta = (ScriptName = "EGrabType"))
 enum class EGrabType : uint8 {
 	Free UMETA(DisplayName = "Free"),
 	Hammer UMETA(DisplayName = "Hammer")
